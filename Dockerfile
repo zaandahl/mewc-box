@@ -1,5 +1,5 @@
 # set base image (host OS)
-FROM zaandahl/megadetector_v4:latest
+FROM zaandahl/megadetector:4.1
 
 # set the working directory in the container
 WORKDIR /code
