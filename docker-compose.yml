@@ -1,0 +1,6 @@
+services:
+  app:
+    image: zaandahl/mewc-box
+    build:
+      context: .
+      dockerfile: ./Dockerfile
