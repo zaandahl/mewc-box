@@ -1,4 +1,5 @@
 import os
+import logging
 import json
 import md_visualization.visualization_utils as viz_utils
 from tqdm import tqdm
@@ -7,9 +8,11 @@ from lib_common import read_yaml
 from lib_tools import process_detections
 from iptcinfo3 import IPTCInfo
 
+logging.getLogger('iptcinfo').setLevel(logging.ERROR)
+
 def get_keywords(file_path):
     try:
-        info = IPTCInfo(file_path, force=True)
+        info = IPTCInfo(file_path)
     except Exception as e:
         print("exception: " + str(e))
         info = None
@@ -35,7 +38,7 @@ json_path = Path(config['INPUT_DIR'],config['MD_FILE'])
 with open(json_path, "r") as read_json:
     json_data = json.load(read_json)
 
-if config['SUBFOLDER'] == 'True':
+if config['SUBFOLDER'] or config['SUBFOLDER'] == 'True':
     sort_text = ' and sorting into subfolders'
 else:
     sort_text = ''
@@ -48,11 +51,11 @@ for json_image in tqdm(json_data['images']):
         image_ext = Path(json_image.get('file')).suffix
         input_path = Path(config['INPUT_DIR'],image_name)
         detections = sum(valid_image)
-        if config['SUBFOLDER'] == 'True':
+        if config['SUBFOLDER'] or config['SUBFOLDER'] == 'True':
             Path(config['INPUT_DIR'],config['BLANK_DIR']).mkdir(parents=True,exist_ok=True)
             for cat_name in json_data['detection_categories']:
                 Path(config['INPUT_DIR'],json_data['detection_categories'][cat_name]).mkdir(parents=True,exist_ok=True)
-        if detections == 0 and config['SUBFOLDER'] == 'True':
+        if detections == 0 and (config['SUBFOLDER'] or config['SUBFOLDER'] == 'True'):
             output_path = Path(config['INPUT_DIR'],config['BLANK_DIR'],image_name)
             input_path.rename(output_path)
         else:
@@ -64,21 +67,14 @@ for json_image in tqdm(json_data['images']):
                 iptc_keywords = None
             for i in range(len(valid_image)):
                 img = draw_box(json_image['detections'][i],img,config['LOWER_CONF'],valid_image[i])
-            if config['SUBFOLDER'] == 'True':
+            img.save(input_path, exif=exif)
+            if iptc_keywords is not None:
+                iptc_keywords.save_as(str(input_path))
+                # remove temp file with ~ at end
+                if(Path(str(input_path) + "~").is_file()):
+                    Path(str(input_path) + "~").unlink()            
+            if config['SUBFOLDER'] or config['SUBFOLDER'] == 'True':
                 image_cat = json_image['detections'][len(json_image['detections'])-1]['category']
                 output_path = Path(config['INPUT_DIR'],json_data['detection_categories'][image_cat],image_name)
-                img.save(output_path, exif=exif)
-                if iptc_keywords is not None:
-                    iptc_keywords.save_as(str(output_path))
-                    # remove temp file with ~ at end
-                    if(Path(str(output_path) + "~").is_file()):
-                        Path(str(output_path) + "~").unlink()
-                input_path.unlink(missing_ok=True)
-            else:
-                img.save(input_path, exif=exif)
-                if iptc_keywords is not None:
-                    iptc_keywords.save_as(str(input_path))
-                    # remove temp file with ~ at end
-                    if(Path(str(input_path) + "~").is_file()):
-                        Path(str(input_path) + "~").unlink()
+                input_path.rename(output_path)
     except: pass
