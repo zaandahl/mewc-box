@@ -15,7 +15,7 @@ VARIABLE=VALUE
 After installing Docker you can run the container using a command similar to the following. Substitute `"$IN_DIR"` for your image directory and create a text file `"$ENV_FILE"` with any config options you wish to override. 
 
 ```
-docker pull zaandahl/mewc-box:v1.0
+docker pull zaandahl/mewc-box
 docker run --env-file "$ENV_FILE" \
     --interactive --tty --rm \
     --volume "$IN_DIR":/images \
