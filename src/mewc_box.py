@@ -105,6 +105,8 @@ def run(config, process=None, renderer=render):
                 entry["eligible_detection_indices"] = [i for i, keep in enumerate(valid) if keep]
                 directory = safe_path(output, sort_category(eligible, categories, config)) if subfolder else output
                 destination = safe_path(directory, item["file"])
+                if destination == output / "box_report.json":
+                    raise ValueError("image destination collides with box_report.json")
                 entry["source_sha256"] = hashlib.sha256(source.read_bytes()).hexdigest()
                 if draw and eligible:
                     with Image.open(source) as image:

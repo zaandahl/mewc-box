@@ -175,3 +175,17 @@ def test_main_rejects_nonmapping_yaml_before_processing(tmp_path, monkeypatch, c
     monkeypatch.setattr(box, "run", lambda _: pytest.fail("invalid YAML started processing"))
     assert box.main() == 1
     assert "config.yaml must contain a mapping" in capsys.readouterr().out
+
+
+def test_image_cannot_overwrite_completion_report(tmp_path):
+    source = tmp_path / 'box_report.json'
+    Image.new('RGB', (24, 24), 'olive').save(source, format='JPEG')
+    original = source.read_bytes()
+    (tmp_path / 'md_out.json').write_text(json.dumps({'images': [{'file': source.name, 'detections': []}], 'detection_categories': {'1': 'animal'}}))
+    report = box.run({'INPUT_DIR': str(tmp_path), 'SUBFOLDER': False, 'DRAW': False}, process)
+    assert report['complete'] is False
+    assert report['counts']['error'] == 1
+    assert 'collides with box_report.json' in report['images'][0]['error']
+    assert 'output_sha256' not in report['images'][0]
+    assert source.read_bytes() == original
+    assert json.loads((tmp_path / 'boxed/box_report.json').read_text()) == report
