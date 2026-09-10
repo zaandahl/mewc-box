@@ -140,20 +140,31 @@ def test_final_output_verification_failure_is_not_success(tmp_path, monkeypatch)
     assert report["counts"]["error"] == 1
 
 
-def test_main_reads_yaml_and_copies_without_flow_lib_common(tmp_path, monkeypatch, capsys):
+def test_shipped_config_matches_stage_defaults():
+    import yaml
+    shipped = yaml.safe_load(Path(box.__file__).with_name("config.yaml").read_text())
+    assert shipped == box.DEFAULTS
+    assert all(value is not None for value in shipped.values())
+
+
+def test_main_shipped_config_renders_without_flow_lib_common(tmp_path, monkeypatch, capsys):
     from types import SimpleNamespace
     setup(tmp_path, [{"file": "site/a.jpg", "detections": [detection()]}])
     original = (tmp_path / "site/a.jpg").read_bytes()
-    (tmp_path / "config.yaml").write_text("DRAW: false\nSUBFOLDER: false\nOUTPUT_DIR: copies\n")
+    (tmp_path / "config.yaml").write_text(Path(box.__file__).with_name("config.yaml").read_text())
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("INPUT_DIR", str(tmp_path))
     monkeypatch.setitem(sys.modules, "lib_common", None)
     monkeypatch.setitem(sys.modules, "lib_tools", SimpleNamespace(process_detections=process))
+    real_run = box.run
+    monkeypatch.setattr(box, "run", lambda config: real_run(config, renderer=renderer))
     assert box.main() == 0
     assert json.loads(capsys.readouterr().out)["complete"] is True
-    assert (tmp_path / "copies/site/a.jpg").read_bytes() == original
+    assert (tmp_path / "boxed/animal/site/a.jpg").read_bytes() != original
     assert (tmp_path / "site/a.jpg").read_bytes() == original
-    assert json.loads((tmp_path / "copies/box_report.json").read_text())["complete"] is True
+    report = json.loads((tmp_path / "boxed/box_report.json").read_text())
+    assert report["complete"] is True
+    assert report["draw"] is True
 
 
 @pytest.mark.parametrize("document", ["", "- INPUT_DIR\n", "scalar\n"])
