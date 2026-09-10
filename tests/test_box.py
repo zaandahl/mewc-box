@@ -116,9 +116,10 @@ def test_category_path_escape_is_per_image_failure(tmp_path):
     assert "unsafe" in report["images"][0]["error"]
 
 
-def test_cli_nonzero_on_image_failure(monkeypatch):
-    from types import SimpleNamespace
-    monkeypatch.setitem(sys.modules, "lib_common", SimpleNamespace(read_yaml=lambda _: {}))
+def test_cli_nonzero_on_image_failure(tmp_path, monkeypatch):
+    (tmp_path / "config.yaml").write_text("{}\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setitem(sys.modules, "lib_common", None)
     monkeypatch.setattr(box, "run", lambda _: {"complete": False, "errors": []})
     assert box.main() == 1
 
@@ -137,3 +138,29 @@ def test_final_output_verification_failure_is_not_success(tmp_path, monkeypatch)
     report = box.run({"INPUT_DIR": str(tmp_path), "DRAW": False}, process)
     assert not report["complete"]
     assert report["counts"]["error"] == 1
+
+
+def test_main_reads_yaml_and_copies_without_flow_lib_common(tmp_path, monkeypatch, capsys):
+    from types import SimpleNamespace
+    setup(tmp_path, [{"file": "site/a.jpg", "detections": [detection()]}])
+    original = (tmp_path / "site/a.jpg").read_bytes()
+    (tmp_path / "config.yaml").write_text("DRAW: false\nSUBFOLDER: false\nOUTPUT_DIR: copies\n")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("INPUT_DIR", str(tmp_path))
+    monkeypatch.setitem(sys.modules, "lib_common", None)
+    monkeypatch.setitem(sys.modules, "lib_tools", SimpleNamespace(process_detections=process))
+    assert box.main() == 0
+    assert json.loads(capsys.readouterr().out)["complete"] is True
+    assert (tmp_path / "copies/site/a.jpg").read_bytes() == original
+    assert (tmp_path / "site/a.jpg").read_bytes() == original
+    assert json.loads((tmp_path / "copies/box_report.json").read_text())["complete"] is True
+
+
+@pytest.mark.parametrize("document", ["", "- INPUT_DIR\n", "scalar\n"])
+def test_main_rejects_nonmapping_yaml_before_processing(tmp_path, monkeypatch, capsys, document):
+    (tmp_path / "config.yaml").write_text(document)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setitem(sys.modules, "lib_common", None)
+    monkeypatch.setattr(box, "run", lambda _: pytest.fail("invalid YAML started processing"))
+    assert box.main() == 1
+    assert "config.yaml must contain a mapping" in capsys.readouterr().out
