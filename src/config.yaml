@@ -1,0 +1,15 @@
+# Standalone boxing stage defaults; this replaces the detector parent's config.
+INPUT_DIR: /images
+MD_FILE: md_out.json
+OUTPUT_DIR: boxed
+DRAW: true
+SUBFOLDER: true
+SORT_POLICY: mixed
+BLANK_DIR: blank
+MIXED_DIR: mixed
+OVERLAP: 0.3
+EDGE_DIST: 0.02
+MIN_EDGES: 0
+UPPER_CONF: 0.9
+LOWER_CONF: 0.05
+SUPPRESSION_POLICY: category-confidence-v1
